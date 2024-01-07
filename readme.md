@@ -1,48 +1,57 @@
 
 # Seir-Seal Project 2
 
-- **Jeff McDonald**
+- **Jeff McDonald** (2024-01-07)
 
-- **App Name:**
-- **Description:**
-- **Github URL:**
-- **Deployed Website:**
-- **Trello Board:**
+- **App Name:** Adirondack State Park
+- **Description:** Hiking the backcountry NY
+- **Github URL:** https://github.com/jeffmcd21/seir-seal-project2
+- **Deployed Website:** https://project-2-pc6u.onrender.com/
+- **Trello Board:** https://trello.com/invite/b/3bJYyONj/ATTIf74e3885fd5e6227185337d9cb2d72fb48855690/seir-seal-unit-2-project
 
 ## List of Dependencies
 
 ##### Node Dependencies (package.json)
 
+- bcrypt
+- connect-mongo
+- dotenv
+- ejs
 - express
+- express-session
+- method-override
+- mongoose
+- morgan
 
 ##### Frontend (if used, ex. jquery, alpine, bootstrap, htmx, etc.)
 
-- alpine
+- alpineJS
 
 ## Route Map
 
-Below should be a table listing the different routes in your app and their purposes.
-
-
 | Route Name | Endpoint | Method | Decsription |
 |------------|----------|--------|-------------|
-|Fruit Index | /fruits  | GET    | Renders all fruits on a page|
+| Hikes Index | /trails | GET | Renders all trails |
+| New hike | /trails/new | GET | Display a form to add new trail |
+| Delete hike | /trails/:id | DELETE | Remove a particular trail then redirect |
+| Update hike | /trails/:id | PUT | Update a particular trail then redirect |
+| Create hike | /trails | GET | Add a new trail to the database then redirect |
+| Edit hike | /trails/:id/edit | POST | Show edit form for one trail |
+| Show hike | /trails/:id | GET | Show info about one trail |
 
-1 for each route
 
-
-## Design Mockups (Desktop + Mobile)
+## Design Mockups (Mobile & Desktop)
 
 ##### Mobile Design
 
-![Mobile Design Mockup](./url-to-picture.jpg)
+![Mobile Design Mockup](https://i.imgur.com/8ldwt7x.png)
 
 ##### Desktop Design
 
-![Desktop Design Mockup](./url-to-picture.jpg)
+![Desktop Design Mockup](https://i.imgur.com/B9EXxQb.png)
 
 ## ERD (Entity Relationship Diagram)
 
-This should be a diagram showing your models and any relationships between them.
+My diagram showing the models and relationships between them.
 
-![Entity Relationship Diagram](./url-to-picture.jpg)
+![Entity Relationship Diagram](https://i.imgur.com/Muj5wnx.png)
