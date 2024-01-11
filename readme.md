@@ -44,7 +44,7 @@
 
 ##### Mobile Design
 
-![Mobile Design Mockup](https://i.imgur.com/8ldwt7x.png)
+![Mobile Design Mockup](https://i.imgur.com/lw1B6J0.png)
 
 ##### Desktop Design
 
@@ -54,4 +54,4 @@
 
 My diagram showing the models and relationships between them.
 
-![Entity Relationship Diagram](https://i.imgur.com/Muj5wnx.png)
+![Entity Relationship Diagram](https://i.imgur.com/7b2DCXU.png)
