@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="en">
     <%- include("../partials/head.ejs") %>
@@ -8,7 +7,42 @@
 
     <main>
         <div>
-            
+            <form action="/mountains/<%= mountain._id %>?_method=PUT">
+                <fieldset>
+                    <legend>Edit <%= mountain.mountainName %></legend><br>
+                    <label>Hike To:<input
+                        type="text"
+                        name="mountainName"
+                        placeholder="hike to what or where"
+                        value="<%= mountain.mountainName %>"/></label><br>
+                    <label>Rank:<input
+                        type="number"
+                        name="rank"
+                        placeholder="rank order"
+                        value="<%= mountain.rank %>"/></label><br>
+                    <label>Elevation:<input
+                        type="number"
+                        name="elevation"
+                        placeholder="high in feet"
+                        value="<%= mountain.elevation %>"/></label><br>
+                    <label>Hike Complete:<input
+                        type="checkbox"
+                        name="hikeComplete"
+                        <%= mountain.hikeComplete ? "Complete" : "" %>/></label><br>
+                    <label>Date Complete:<input
+                        type="date"
+                        name="dateComplete"
+                        placeholder="date"
+                        value="<%= mountain.dateComplete %>"/></label><br>
+                    <label>Image:<input
+                        type="text"
+                        name="img"
+                        placeholder="image"
+                        value="<%= mountain.img %>"/></label>
+                </fieldset>
+                <!-- <input type="submit" value="Update Adventure"/> -->
+                <button>Update Adventure</button>
+            </form>
         </div>
     </main>
 </body>

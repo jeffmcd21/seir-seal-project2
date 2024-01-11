@@ -9,32 +9,38 @@
         <div>
             <form action="/mountains" method="POST">
                 <fieldset>
-                    <legand>Add a new location</legand><br>
-                    <label>Rank:<input
-                        type="number"
-                        name="rank"
-                        placeholder="rank order"/></label><br>
-                    <label>Hike To:<input
+                    <legend>Create a New Adventure</legend><br>
+                    <label>
+                        Hike To:<input
                         type="text"
                         name="mountainName"
                         placeholder="hike to what or where"/></label><br>
-                    <label>Elevation:<input
+                    <label>
+                        Rank:<input
+                        type="number"
+                        name="rank"
+                        placeholder="rank order"/></label><br>
+                    <label>
+                        Elevation:<input
                         type="number"
                         name="elevation"
                         placeholder="high in feet"/></label><br>
-                    <label>Hike Complete:<input
+                    <label>
+                        Hike Complete:<input
                         type="checkbox"
                         name="hikeComplete"/></label><br>
-                    <label>Date Complete:<input
+                    <label>
+                        Date Complete:<input
                         type="date"
                         name="dateComplete"
                         placeholder="date"/></label><br>
-                    <label>Image:<input
+                    <label>
+                        Image:<input
                         type="text"
                         name="img"
-                        placeholder="image"/></label>
+                        placeholder="photo"/></label>
                 </fieldset>
-                <button>Add new destination</button>
+                <input type="submit" value="Add New Adventure"/>
             </form>
         </div>
     </main>

@@ -128,8 +128,29 @@ app.get("/mountains/new", (req, res) => {
 })
 
 // -- DELETE -- //
+app.delete("/mountains/:id", async (req, res) => {
+    try {
+        const id = req.params.id
+        await Mountain.findByIdAndDelete(id)
+        res.redirect("/mountains")
+    } catch(error) {
+        console.log("---***---", error.message, "---***---")
+        res.status(400).send("You tripped on a log, check it out")
+    }
+})
 
 // -- UPDATE -- //
+app.put("/mountains/:id", async (req, res) => {
+    try {
+        const id = req.params.id
+        req.body.hikeComplete = req.body.hikeComplete === "on" ? true : false
+        await Mountain.findByIdAndUpdate(id, req.body, { new: true })
+        res.redirect("/mountains")
+    } catch(error) {
+        console.log("---***---", error.message, "---***---")
+        res.status(400).send("You tripped on a log, check it out")
+    }
+})
 
 // -- CREATE -- //
 app.post("/mountains", async (req, res) => {
@@ -150,6 +171,7 @@ app.get("/mountains/:id/edit", async (req, res) => {
         const id = req.params.id
         const mountain = await Mountain.findById(id)
         res.render("mountains/edit.ejs", { mountain })
+        console.log(id)
     } catch(error) {
         console.log("---***---", error.message, "---***---")
         res.status(400).send("You tripped on a log, check it out")
@@ -162,7 +184,6 @@ app.get("/mountains/:id", async (req, res) => {
         const id = req.params.id;
         const mountain = await Mountain.findById(id);
         res.render("mountains/show.ejs", { mountain })
-        // console.log(id)
     } catch(error) {
         console.log("---***---", error.message, "---***---")
         res.status(400).send("You tripped on a log, check it out")
