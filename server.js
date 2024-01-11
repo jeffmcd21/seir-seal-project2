@@ -104,11 +104,21 @@ app.get("/mountains/seed", async (req, res) => {
     res.json(mountains)
     } catch(error) {
         console.log(error.message)
-        // res.status(400).send(error.message)
-        res.send("Error Found")
+        console.log("---***---", error.message, "---***---")
+        res.status(400).send("You tripped check the log")
     }
 })
 // -- INDEX -- //
+app.get("/mountains", async (req, res) => {
+    try {
+        // const username = req.session.username
+        const mountains = await Mountain.find({}) // inject username here once auth is built
+        res.render("mountains/index.ejs", { mountains })
+    } catch(error) {
+        console.log("---***---", error.message, "---***---")
+        res.status(400).send("You tripped check the log")
+    }
+})
 
 // -- NEW -- //
 
