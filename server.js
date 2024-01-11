@@ -23,7 +23,7 @@ const mountainSchema = new Schema({
     rank: Number,
     mountainName: String,
     elevation: Number,
-    hikeCompleted: Boolean,
+    hikeComplete: Boolean,
     img: String,
     // dateComplete: Date,
     // username: String
@@ -105,7 +105,7 @@ app.get("/mountains/seed", async (req, res) => {
     } catch(error) {
         console.log(error.message)
         console.log("---***---", error.message, "---***---")
-        res.status(400).send("You tripped check the log")
+        res.status(400).send("You tripped check that log")
     }
 })
 // -- INDEX -- //
@@ -113,10 +113,10 @@ app.get("/mountains", async (req, res) => {
     try {
         // const username = req.session.username
         const mountains = await Mountain.find({}) // inject username here once auth is built
-        res.render("mountains/index.ejs", { mountains })
+        res.render("mountains/index.ejs", {mountains})
     } catch(error) {
         console.log("---***---", error.message, "---***---")
-        res.status(400).send("You tripped check the log")
+        res.status(400).send("You tripped check that log")
     }
 })
 

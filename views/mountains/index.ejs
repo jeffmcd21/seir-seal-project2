@@ -1,0 +1,22 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <%- include("../partials/head.ejs") %>
+<body>
+    <%- include("../partials/header.ejs") %>
+
+    <main>
+        <div>
+            <% for (let mountain of mountains) { %> 
+                <article>
+                    <a href="/mountains/<% mountain._id %>">
+                        <h4>
+                            <%= mountain.mountainName %> - <%= mountain.hikeCompleted ? "Complete" : "On the list" %>
+                        </h4>
+                    </a>
+                </article>            
+            <% } %>
+        </div>
+    </main>
+</body>
+</html>
