@@ -132,8 +132,29 @@ app.get("/mountains/new", (req, res) => {
 // -- UPDATE -- //
 
 // -- CREATE -- //
+app.post("/mountains", async (req, res) => {
+    try {
+        req.body.hikeComplete = req.body.hikeComplete === "on" ? true : false
+        // req.body.username = req.session.username // Add this once username is setup
+        await Mountain.create(req.body)
+        res.redirect("/mountains")
+    } catch(error) {
+        console.log("---***---", error.message, "---***---")
+        res.status(400).send("You tripped on a log, check it out")
+    }
+})
 
 // -- EDIT -- //
+app.get("/mountains/:id/edit", async (req, res) => {
+    try {
+        const id = req.params.id
+        const mountain = await Mountain.findById(id)
+        res.render("mountains/edit.ejs", { mountain })
+    } catch(error) {
+        console.log("---***---", error.message, "---***---")
+        res.status(400).send("You tripped on a log, check it out")
+    }
+})
 
 // -- SHOW -- //
 app.get("/mountains/:id", async (req, res) => {

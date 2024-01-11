@@ -1,1 +1,42 @@
 
+<!DOCTYPE html>
+<html lang="en">
+    <%- include("../partials/head.ejs") %>
+<body>
+    <%- include("../partials/header.ejs") %>
+
+    <main>
+        <div>
+            <form action="/mountains" method="POST">
+                <fieldset>
+                    <legand>Add a new location</legand><br>
+                    <label>Rank:<input
+                        type="number"
+                        name="rank"
+                        placeholder="rank order"/></label><br>
+                    <label>Hike To:<input
+                        type="text"
+                        name="mountainName"
+                        placeholder="hike to what or where"/></label><br>
+                    <label>Elevation:<input
+                        type="number"
+                        name="elevation"
+                        placeholder="high in feet"/></label><br>
+                    <label>Hike Complete:<input
+                        type="checkbox"
+                        name="hikeComplete"/></label><br>
+                    <label>Date Complete:<input
+                        type="date"
+                        name="dateComplete"
+                        placeholder="date"/></label><br>
+                    <label>Image:<input
+                        type="text"
+                        name="img"
+                        placeholder="image"/></label>
+                </fieldset>
+                <button>Add new destination</button>
+            </form>
+        </div>
+    </main>
+</body>
+</html>
