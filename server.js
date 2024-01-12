@@ -145,7 +145,7 @@ app.put("/mountains/:id", async (req, res) => {
         const id = req.params.id
         req.body.hikeComplete = req.body.hikeComplete === "on" ? true : false
         await Mountain.findByIdAndUpdate(id, req.body, { new: true })
-        res.redirect("/mountains")
+        res.redirect(`/mountains/${id}`)
     } catch(error) {
         console.log("---***---", error.message, "---***---")
         res.status(400).send("You tripped on a log, check it out")
