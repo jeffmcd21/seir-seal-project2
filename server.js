@@ -5,33 +5,7 @@ const express = require("express")
 const morgan = require("morgan")
 const methodOverride = require("method-override")
 const mongoose = require("mongoose")
-
-// ~ GET .ENV VARIABLES ~ //
-const {DATABASE_URL, SECRET, PORT} = process.env
-
-// ~ DATABASE CONNECTION ~ //
-mongoose.connect(DATABASE_URL)
-
-mongoose.connection
-.on("open",  () => console.log("Connected to Mongo"))
-.on("close", () => console.log("Disconnected from Mongo"))
-.on("error", (error) => console.log(error))
-
-// ~ SCHEMA ~ //
-const {Schema, model} = mongoose
-
-const mountainsSchema = new Schema({
-    rank: Number,
-    mountainName: String,
-    elevation: Number,
-    hikeComplete: Boolean,
-    img: String,
-    dateComplete: Date,
-    username: String
-})
-
-// ~ MODEL ~ //
-const Mountain = model("Mountain", mountainsSchema) 
+const Mountain = require("./models/Mountain")
 
 
 // ~ APP OBJECT ~ //
@@ -193,6 +167,7 @@ app.get("/mountains/:id", async (req, res) => {
 
 
 // ~ SERVER LISTENER ~ //
+const PORT = process.env.PORT || 23456 // Why wasn't this needed prior to refactoring???
 app.listen(PORT, () => {
     console.log(`Listening on port ${PORT}`)
 })
