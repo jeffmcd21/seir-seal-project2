@@ -8,8 +8,18 @@ const Mountain = require("../models/Mountain")
 const router = express.Router()
 
 
-// ~ ROUTES ~ //
+// ~ MIDDLEWARE ~ //
+router.use((req, res, next) => {
+    console.table(req.session)
+    if(req.session.loggedIn) {
+        next();
+    } else {
+    res.redirect("/user/login")
+    }
+}); 
 
+
+// ~ ROUTES ~ //
 // -- SEED -- //
 router.get("/seed", async (req, res) => {
     try {
@@ -74,8 +84,8 @@ router.get("/seed", async (req, res) => {
 // -- INDEX -- //
 router.get("/", async (req, res) => {
     try {
-        // const username = req.session.username
-        const mountains = await Mountain.find({}) // inject username here once auth is built
+        const username = req.session.username
+        const mountains = await Mountain.find({ username })
         res.render("mountains/index.ejs", { mountains })
     } catch(error) {
         console.log("---***---", error.message, "---***---")
@@ -118,7 +128,7 @@ router.put("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
     try {
         req.body.hikeComplete = req.body.hikeComplete === "on" ? true : false
-        // req.body.username = req.session.username // Add this once username is setup
+        req.body.username = req.session.username // Add this once username is setup
         await Mountain.create(req.body)
         res.redirect("/mountains")
     } catch(error) {
