@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <%- include("../partials/head.ejs") %>
-
+  <a href="/user/signup"><button>Create Account</button></a>
   <body>
     <!-- <%#- include("../partials/header.ejs") %> -->
     <main>
@@ -10,9 +10,9 @@
         <form action="/user/login" method="post">
           <fieldset>
             <legend>User Login</legend>
-            <label
+            <!-- <label
               >NAME: <input type="text" name="name" required />
-            </label>
+            </label> -->
             <label
               >USERNAME: <input type="text" name="username" required />
             </label>

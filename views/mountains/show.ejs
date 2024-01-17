@@ -8,14 +8,19 @@
     <main>
       <div>
 
-        <article>
-          <h2><%= mountain.mountainName %> - <%= mountain.hikeComplete ? "Complete" : "On the list" %></h2>
-          <h5>Rank <%= mountain.rank %> of 46</h5>
-          <a href="/mountains/<%= mountain._id %>/edit"><button>Edit</button></a>
-          <form action="/mountains/<%= mountain._id %>?_method=DELETE" method="POST">
-            <input type="submit" value="Delete"/>
-          </form>
-          <a href="/mountains"><button>Back to Main</button></a>
+        <article x-data="{showTools: false}">
+            <h2><%= mountain.mountainName %> - <%= mountain.hikeComplete ? "Complete" : "On the list" %></h2>
+            <h5>Rank <%= mountain.rank %> of 46</h5>
+
+            <button x-on:click="showTools= !showTools">Show Options</button>
+
+            <div x-show="showTools">
+                <a href="/mountains/<%= mountain._id %>/edit"><button>Edit</button></a>
+                <form action="/mountains/<%= mountain._id %>?_method=DELETE" method="POST">
+                    <input type="submit" value="Delete"/>
+                </form>
+                <a href="/mountains"><button>Back to Main</button></a>
+            </div>
         </article>
 
       </div>

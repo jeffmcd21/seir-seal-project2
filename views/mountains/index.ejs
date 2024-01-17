@@ -10,16 +10,40 @@
         <div>
             <% for (let mountain of mountains) { %> 
                 <article>
-                    <a href="/mountains/<%= mountain._id %>">
-                        <h2>
+                    <!-- <a href="/mountains/<%#= mountain._id %>"> -->
+                        <h2
+                            hx-get="/mountains/<%= mountain.id %>"
+                            hx-trigger="click"
+                            hx-target="div"
+                            hx-swap="innerHTML"
+                            hx-select="article">
                             <!-- <%#= mountain.mountainName %> - <%#= mountain.hikeComplete ? "Complete" : "On the list" %> -->
                             <!-- Rank <%#= mountain.rank %> /  -->
                             Peak - <%= mountain.mountainName %> / Elevation <%= mountain.elevation %> (feet) 
                             <!-- / <%#= mountain.hikeComplete  ? "Complete" : "On the list" %> -->
                         </h2>
-                    </a>
+                    <!-- </a> -->
                 </article>            
             <% } %>
+
+            <% for (let mountain of mountainsHiked) { %> 
+                <article>
+                    <!-- <a href="/mountains/<%#= mountain._id %>"> -->
+                        <h2
+                            hx-get="/mountains/<%= mountain.id %>"
+                            hx-trigger="click"
+                            hx-target="div"
+                            hx-swap="innerHTML"
+                            hx-select="article">
+                            <!-- <%#= mountain.mountainName %> - <%#= mountain.hikeComplete ? "Complete" : "On the list" %> -->
+                            <!-- Rank <%#= mountain.rank %> /  -->
+                            Peak - <%= mountain.mountainName %> / Elevation <%= mountain.elevation %> (feet) 
+                            <!-- / <%#= mountain.hikeComplete  ? "Complete" : "On the list" %> -->
+                        </h2>
+                    <!-- </a> -->
+                </article>            
+            <% } %>
+
         </div>
     </main>
 </body>

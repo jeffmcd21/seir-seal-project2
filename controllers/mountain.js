@@ -85,8 +85,10 @@ router.get("/seed", async (req, res) => {
 router.get("/", async (req, res) => {
     try {
         const username = req.session.username
-        const mountains = await Mountain.find({}) //username
-        res.render("mountains/index.ejs", { mountains })
+        const mountains = await Mountain.find({})
+        const mountainsHiked = await Mountain.find({ username })
+        // console.log(mountainsHiked, mountains)
+        res.render("mountains/index.ejs", { mountains, mountainsHiked })
     } catch(error) {
         console.log("---***---", error.message, "---***---")
         res.status(400).send("You tripped on a log, watch out")
@@ -115,7 +117,9 @@ router.put("/:id", async (req, res) => {
     try {
         const id = req.params.id
         req.body.hikeComplete = req.body.hikeComplete === "on" ? true : false
+        req.body.username = req.session.username 
         await Mountain.findByIdAndUpdate(id, req.body, { new: true })
+        console.log(req.body)
         res.redirect("/mountains")
         // (`/mountains/${id}`)
     } catch(error) {
