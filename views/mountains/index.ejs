@@ -34,6 +34,8 @@
         height: 75%;
         margin: 0;
         padding: 0;
+        margin: 10px;
+        padding-left: 10%;
       }
 
       #map-container {
@@ -392,7 +394,7 @@
 
 
     <main>
-            <a href="/mountains/new"><button>Create New Adventure</button></a>
+            
         <div id="container">
             
             <% for (let mountain of mountains) { %> 
@@ -452,6 +454,14 @@
             body {
                 background-color: rgba(0,0,0,.5);
             }
+
+            img {
+                max-width: 400px;
+            }
+
+            .newHike {
+                margin-top: 2%;
+            }
             
             #container {
                 font-size: x-small;
@@ -460,7 +470,9 @@
                 flex-direction: wrap;
                 align-items: center;
                 justify-content: space-around;
-                margin: auto;
+                margin: 0 auto;
+                padding-top: 5%;
+                padding-right: 5%;
                 
                 /* 
                 display: grid;
@@ -475,7 +487,9 @@
             }
 
             .allMountains {
-                
+                display: flex;
+                flex-direction: row;
+                background-color: greenyellow;
             }
 
             /* section {
@@ -483,6 +497,7 @@
             } */
 
             aside {
+                padding: auto;
                 /* grid-area: aside; */
                 background-color: blue;
             } 

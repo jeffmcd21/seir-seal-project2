@@ -11,6 +11,7 @@
         <article x-data="{showTools: false}">
             <h2><%= mountain.mountainName %> - <%= mountain.hikeComplete ? "Complete" : "On the list" %></h2>
             <h5>Rank <%= mountain.rank %> of 46</h5>
+            <img src=<%= mountain.img %> ><br>
 
             <button x-on:click="showTools= !showTools">Show Options</button>
 
@@ -19,9 +20,15 @@
                 <form action="/mountains/<%= mountain._id %>?_method=DELETE" method="POST">
                     <input type="submit" value="Delete"/>
                 </form>
-                <a href="/mountains"><button>Back to Main</button></a>
+                <!-- <a href="/mountains"><button>Back to Main</button></a> -->
             </div>
         </article>
+        
+        <style>
+            article {
+                position: relative;
+            }
+        </style>
 
       </div>
     </main>
