@@ -4,12 +4,399 @@
     <%- include("../partials/head.ejs") %>
 <body>
     <%- include("../partials/header.ejs") %>
+   <!--
+  Copyright 2023 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Locator</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/handlebars/4.7.7/handlebars.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <style>
+      html,
+      body {
+        height: 75%;
+        margin: 0;
+        padding: 0;
+      }
+
+      #map-container {
+        width: 75%;
+        height: 75%;
+        position: relative;
+        font-family: "Roboto", sans-serif;
+        box-sizing: border-box;
+      }
+
+      #map-container a {
+        text-decoration: none;
+        color: #1967d2;
+      }
+
+      #map-container button {
+        background: none;
+        color: inherit;
+        border: none;
+        padding: 0;
+        font: inherit;
+        font-size: inherit;
+        cursor: pointer;
+      }
+
+      #gmp-map {
+        position: absolute;
+        left: 22em;
+        top: 0;
+        right: 0;
+        bottom: 0;
+      }
+
+      #locations-panel {
+        position: absolute;
+        left: 0;
+        width: 22em;
+        top: 0;
+        bottom: 0;
+        overflow-y: auto;
+        background: white;
+        padding: 0.5em;
+        box-sizing: border-box;
+      }
+
+      @media only screen and (max-width: 876px) {
+        #gmp-map {
+          left: 0;
+          bottom: 50%;
+        }
+
+        #locations-panel {
+          top: 50%;
+          right: 0;
+          width: unset;
+        }
+      }
+
+      #locations-panel-list .section-name {
+        font-weight: 500;
+        font-size: 0.9em;
+        margin: 1.8em 0 1em 1.5em;
+      }
+
+      #locations-panel-list .location-result {
+        position: relative;
+        padding: 0.8em 3.5em 0.8em 1.4em;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        cursor: pointer;
+      }
+
+      #locations-panel-list .location-result:first-of-type {
+        border-top: 1px solid rgba(0, 0, 0, 0.12);
+      }
+
+      #locations-panel-list .location-result:last-of-type {
+        border-bottom: none;
+      }
+
+      #locations-panel-list .location-result.selected {
+        outline: 2px solid #4285f4;
+      }
+
+      #locations-panel-list button.select-location {
+        margin-bottom: 0.6em;
+        text-align: left;
+      }
+
+      #locations-panel-list .location-result h2.name {
+        font-size: 1em;
+        font-weight: 500;
+        margin: 0;
+      }
+
+      #locations-panel-list .location-result .address {
+        color: #757575;
+        font-size: 0.9em;
+        margin-bottom: 0.5em;
+      }
+
+      #locations-panel-list .directions-button {
+        position: absolute;
+        right: 1.2em;
+        top: 2.3em;
+      }
+
+      #locations-panel-list .directions-button-background:hover {
+        fill: rgba(116,120,127,0.1);
+      }
+
+      #locations-panel-list .directions-button-background {
+        fill: rgba(255,255,255,0.01);
+      }
+
+      #location-results-list {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script>
+      'use strict';
+
+      /** Helper function to generate a Google Maps directions URL */
+      function generateDirectionsURL(origin, destination) {
+        const googleMapsUrlBase = 'https://www.google.com/maps/dir/?';
+        const searchParams = new URLSearchParams('api=1');
+        searchParams.append('origin', origin);
+        const destinationParam = [];
+        // Add title to destinationParam except in cases where Quick Builder set
+        // the title to the first line of the address
+        if (destination.title !== destination.address1) {
+          destinationParam.push(destination.title);
+        }
+        destinationParam.push(destination.address1, destination.address2);
+        searchParams.append('destination', destinationParam.join(','));
+        return googleMapsUrlBase + searchParams.toString();
+      }
+
+      /**
+       * Defines an instance of the Locator+ solution, to be instantiated
+       * when the Maps library is loaded.
+       */
+      function LocatorPlus(configuration) {
+        const locator = this;
+
+        locator.locations = configuration.locations || [];
+        locator.capabilities = configuration.capabilities || {};
+
+        const mapEl = document.getElementById('gmp-map');
+        const panelEl = document.getElementById('locations-panel');
+        locator.panelListEl = document.getElementById('locations-panel-list');
+        const sectionNameEl =
+            document.getElementById('location-results-section-name');
+        const resultsContainerEl = document.getElementById('location-results-list');
+
+        const itemsTemplate = Handlebars.compile(
+            document.getElementById('locator-result-items-tmpl').innerHTML);
+
+        locator.selectedLocationIdx = null;
+        locator.userCountry = null;
+
+        // Initialize the map -------------------------------------------------------
+        locator.map = new google.maps.Map(mapEl, configuration.mapOptions);
+
+        // Store selection.
+        const selectResultItem = function(locationIdx, panToMarker, scrollToResult) {
+          locator.selectedLocationIdx = locationIdx;
+          for (let locationElem of resultsContainerEl.children) {
+            locationElem.classList.remove('selected');
+            if (getResultIndex(locationElem) === locator.selectedLocationIdx) {
+              locationElem.classList.add('selected');
+              if (scrollToResult) {
+                panelEl.scrollTop = locationElem.offsetTop;
+              }
+            }
+          }
+          if (panToMarker && (locationIdx != null)) {
+            locator.map.panTo(locator.locations[locationIdx].coords);
+          }
+        };
+
+        // Create a marker for each location.
+        const markers = locator.locations.map(function(location, index) {
+          const marker = new google.maps.Marker({
+            position: location.coords,
+            map: locator.map,
+            title: location.title,
+          });
+          marker.addListener('click', function() {
+            selectResultItem(index, false, true);
+          });
+          return marker;
+        });
+
+        // Fit map to marker bounds.
+        locator.updateBounds = function() {
+          const bounds = new google.maps.LatLngBounds();
+          for (let i = 0; i < markers.length; i++) {
+            bounds.extend(markers[i].getPosition());
+          }
+          locator.map.fitBounds(bounds);
+        };
+        if (locator.locations.length) {
+          locator.updateBounds();
+        }
+
+        // Render the results list --------------------------------------------------
+        const getResultIndex = function(elem) {
+          return parseInt(elem.getAttribute('data-location-index'));
+        };
+
+        locator.renderResultsList = function() {
+          let locations = locator.locations.slice();
+          for (let i = 0; i < locations.length; i++) {
+            locations[i].index = i;
+          }
+          sectionNameEl.textContent = `All locations (${locations.length})`;
+          const resultItemContext = {locations: locations};
+          resultsContainerEl.innerHTML = itemsTemplate(resultItemContext);
+          for (let item of resultsContainerEl.children) {
+            const resultIndex = getResultIndex(item);
+            if (resultIndex === locator.selectedLocationIdx) {
+              item.classList.add('selected');
+            }
+
+            const resultSelectionHandler = function() {
+              if (resultIndex !== locator.selectedLocationIdx) {
+                selectResultItem(resultIndex, true, false);
+              }
+            };
+
+            // Clicking anywhere on the item selects this location.
+            // Additionally, create a button element to make this behavior
+            // accessible under tab navigation.
+            item.addEventListener('click', resultSelectionHandler);
+            item.querySelector('.select-location')
+                .addEventListener('click', function(e) {
+                  resultSelectionHandler();
+                  e.stopPropagation();
+                });
+
+            // Clicking the directions button will open Google Maps directions in a
+            // new tab
+            const origin = (locator.searchLocation != null) ?
+                locator.searchLocation.location :
+                '';
+            const destination = locator.locations[resultIndex];
+            const googleMapsUrl = generateDirectionsURL(origin, destination);
+            item.querySelector('.directions-button')
+                .setAttribute('href', googleMapsUrl);
+          }
+        };
+
+        // Optional capability initialization --------------------------------------
+
+        // Initial render of results -----------------------------------------------
+        locator.renderResultsList();
+      }
+    </script>
+    <script>
+      const CONFIGURATION = {
+        "locations": [
+          {"title":"Mount Marcy","address1":"Mt Marcy","address2":"Keene, NY 12943, USA","coords":{"lat":44.11256900604449,"lng":-73.92347103558197},"placeId":"ChIJmyyphebcykwRIPrFF3MfEN8"},
+          {"title":"Algonquin Peak","address1":"Algonquin Peak","address2":"North Elba, NY 12946, USA","coords":{"lat":44.14365580103231,"lng":-73.98653033558197},"placeId":"ChIJHUunS3LeykwRQcY6Ocz_jZs"},
+          {"title":"Mount Haystack","address1":"Mt Haystack","address2":"Keene, NY 12943, USA","coords":{"lat":44.10560929999999,"lng":-73.90042496441801},"placeId":"ChIJ1R5Okc3cykwRrl5Y-kAvKnw"},
+          {"title":"Mount Skylight","address1":"Mt Skylight","address2":"Keene, NY 12943, USA","coords":{"lat":44.099506404724146,"lng":-73.93070396441803},"placeId":"ChIJ8SwXj5TcykwRvTjqgikGe48"},
+          {"title":"Whiteface Mountain","address1":"Whiteface Mountain","address2":"Wilmington, NY 12997, USA","coords":{"lat":44.36587273007045,"lng":-73.90264023558196},"placeId":"ChIJZ9ZXhcz9ykwRazeg62rq1oE"},
+          {"title":"Dix Mountain","address1":"Dix Mountain","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.08226789303084,"lng":-73.78624173558197},"placeId":"ChIJ1eEyOGrBykwRgjbPxuIeoaM"},
+          {"title":"Gray Peak","address1":"Gray Peak","address2":"Keene, NY 12943, USA","coords":{"lat":44.11145810633408,"lng":-73.93488189325409},"placeId":"ChIJE-ihePrcykwR3K-34IoWFc0"},
+          {"title":"Iroquois Peak","address1":"Iroquois Peak","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.13680480377332,"lng":-73.99814359140167},"placeId":"ChIJWViiymXeykwRh7laV_6pB70"},
+          {"title":"Basin Mountain","address1":"Basin Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.12115619809863,"lng":-73.88625806441802},"placeId":"ChIJcd4I2tLCykwRZMMxkNpQD58"},
+          {"title":"Gothics","address1":"Gothics","address2":"Keene, NY 12943, USA","coords":{"lat":44.12780756040835,"lng":-73.85736116752852},"placeId":"ChIJ2z_Aq-rCykwRLP66taNuvV0"},
+          {"title":"Mount Colden","address1":"Mt Colden","address2":"Keene, NY 12943, USA","coords":{"lat":44.127066910222496,"lng":-73.95989412209015},"placeId":"ChIJHWBNg7XdykwR-_5L0bs9dYE"},
+          {"title":"Giant Mountain","address1":"Giant Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.161265009990494,"lng":-73.72047726441802},"placeId":"ChIJfWpNMlLqykwRHAliseWeAuo"},
+          {"title":"Nippletop","address1":"Nippletop","address2":"Keene, NY 12943, USA","coords":{"lat":44.089394087919494,"lng":-73.81574331349182},"placeId":"ChIJEZwEVcPDykwRl5WwzVSrY2I"},
+          {"title":"Santanoni Peak","address1":"Santanoni Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.082273393031585,"lng":-74.13098013558196},"placeId":"ChIJIb8wxnEny0wROoVstYWq6-8"},
+          {"title":"Mount Redfield","address1":"Mt Redfield","address2":"Keene, NY 12943, USA","coords":{"lat":44.094777000000015,"lng":-73.94986063558196},"placeId":"ChIJ6UHAKYbcykwRLBI9glCcoH4"},
+          {"title":"Wright Peak","address1":"Wright Peak","address2":"North Elba, NY 12946, USA","coords":{"lat":44.151695606245674,"lng":-73.98015216441803},"placeId":"ChIJzeyNlQ7eykwR_y5tb_RMPfU"},
+          {"title":"Saddleback Mountain","address1":"Saddleback Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.126433698786634,"lng":-73.87484730674592},"placeId":"ChIJ0Q4TLMnCykwR12L-ZoQdyMk"},
+          {"title":"Panther Peak","address1":"Panther Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.098460843779655,"lng":-74.1320809067459},"placeId":"ChIJBx5avzgny0wR54rMI0CqyXM"},
+          {"title":"Table Top Mountain","address1":"Table Top Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.14037959163477,"lng":-73.91608886441803},"placeId":"ChIJz8KQanLdykwRCJ62smRkP8k"},
+          {"title":"Rocky Peak Ridge","address1":"Rocky Peak Ridge","address2":"Keene, NY 12943, USA","coords":{"lat":44.15443630243837,"lng":-73.70555063558197},"placeId":"ChIJITgzPvrqykwRbZtNH0zZ7T8"},
+          {"title":"Macomb Mountain","address1":"Macomb Mountain","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.05184447503803,"lng":-73.78007579140169},"placeId":"ChIJYVLTq9DGykwRCHL7YGJneUA"},
+          {"title":"Armstrong Mountain","address1":"Armstrong Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.1347741,"lng":-73.84902373558197},"placeId":"ChIJcd7jGZfCykwRIuMfurDEe0o"},
+          {"title":"Hough Peak","address1":"Hough Peak","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.069474874096464,"lng":-73.7776191067459},"placeId":"ChIJw47_cjDBykwRDdnASi0WF9c"},
+          {"title":"Seward Mountain","address1":"Seward Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.1597798,"lng":-74.19932926441803},"placeId":"ChIJa0oVlUoiy0wRbnt9yTWlX4Q"},
+          {"title":"Mount Marshall","address1":"Mt Marshall","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.127538397862345,"lng":-74.01183029325409},"placeId":"ChIJO9FbrPTeykwRPIK73QXWF7E"},
+          {"title":"Allen Mountain","address1":"Allen Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.07087378309436,"lng":-73.93959246441801},"placeId":"ChIJ6T9sOULbykwR4aPSBaFfoJc"},
+          {"title":"Big Slide Mountain","address1":"Big Slide Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.18226440606917,"lng":-73.87041483558197},"placeId":"ChIJd-tZBMznykwRSq3SsQfHmP8"},
+          {"title":"Esther Mountain","address1":"Esther Mountain","address2":"Wilmington, NY 12997, USA","coords":{"lat":44.387006934326664,"lng":-73.88986193558195},"placeId":"ChIJM73PNH3-ykwRYAxOR2flX_k"},
+          {"title":"Upper Wolfjaw Mountain","address1":"Upper Wolfjaw Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.140614899365254,"lng":-73.84513483558197},"placeId":"ChIJmWjeSpnCykwRmEePSIj-Wrk"},
+          {"title":"Lower Wolfjaw Mountain","address1":"Lower Wolfjaw Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.14837680164801,"lng":-73.83266672209015},"placeId":"ChIJXVMIVS_oykwRqfGUzcSvhy0"},
+          {"title":"Street Mountain","address1":"Street Mountain","address2":"North Elba, NY 12946, USA","coords":{"lat":44.17934658862623,"lng":-74.02720072209014},"placeId":"ChIJI9bUJXLgykwRitIGBrqP0Co"},
+          {"title":"Phelps Mountain","address1":"Phelps Mountain","address2":"North Elba, NY 12943, USA","coords":{"lat":44.15699570000002,"lng":-73.92097213558196},"placeId":"ChIJ6zPPMn7nykwR-mrO9CrPhKc"},
+          {"title":"Donaldson Mountain","address1":"Donaldson Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.15393940237358,"lng":-74.2109749067459},"placeId":"ChIJQcjrprEjy0wREMmVjnD_agE"},
+          {"title":"Seymour Mountain","address1":"Seymour Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.15782700288068,"lng":-74.17208420674592},"placeId":"ChIJgfLqk4Ahy0wR68TAyJvSE6M"},
+          {"title":"Sawteeth","address1":"Sawteeth","address2":"Keene, NY 12943, USA","coords":{"lat":44.11334840584131,"lng":-73.85066163558197},"placeId":"ChIJMSKqgvzCykwRJYm9KmgSx34"},
+          {"title":"Cascade Mountain","address1":"Cascade Mountain","address2":"Keene, NY 12942, USA","coords":{"lat":44.21865171081945,"lng":-73.86013753558198},"placeId":"ChIJQQHwZHTmykwRJTdhJIdPRCQ"},
+          {"title":"South Dix","address1":"South Dix","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.060038580272206,"lng":-73.77429603558198},"placeId":"ChIJN94nrdTGykwR5gKoD1Q8CIY"},
+          {"title":"Porter Mountain","address1":"Porter Mountain","address2":"Keene, NY 12942, USA","coords":{"lat":44.21526468304531,"lng":-73.8436041460327},"placeId":"ChIJM2643gXmykwRTPbUcCpx-Rg"},
+          {"title":"Mount Colvin","address1":"Mt Colvin","address2":"Keene, NY 12943, USA","coords":{"lat":44.09399633811599,"lng":-73.83457753558196},"placeId":"ChIJRWvHurvDykwRv7HTVEsFy3Y"},
+          {"title":"Mount Emmons","address1":"Mt Emmons","address2":"Harrietstown, NY, USA","coords":{"lat":44.143692896894606,"lng":-74.21408395092621},"placeId":"ChIJB1oS0L0jy0wRZiiZJGO18qc"},
+          {"title":"Dial Mountain","address1":"Dial Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.10587039221342,"lng":-73.7959862932541},"placeId":"ChIJSyqbhCnCykwRKC7O1jdlKEI"},
+          {"title":"Grace Mountain","address1":"North Hudson","address2":"NY 12855, USA","coords":{"lat":44.06552569999998,"lng":-73.75743936441805},"placeId":"ChIJudwowtDAykwRh69P52ayJcw"},
+          {"title":"Blake Peak","address1":"Blake Peak","address2":"Keene, NY 12943, USA","coords":{"lat":44.08142758584374,"lng":-73.84457763558196},"placeId":"ChIJc2UjZpDDykwROTAahzlV9DA"},
+          {"title":"Cliff Mountain","address1":"Cliff Mountain","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.10304856593578,"lng":-73.97513983558197},"placeId":"ChIJaRnuVxPcykwRWuaV-scAm-U"},
+          {"title":"Nye Mountain","address1":"Nye Mountain","address2":"North Elba, NY 12946, USA","coords":{"lat":44.18722547393831,"lng":-74.02373253558196},"placeId":"ChIJ19MxfGrgykwRZ-u_ms4FR7Y"},
+          {"title":"Couchsachraga Peak","address1":"Couchsachraga Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.09562230523025,"lng":-74.16014853558198},"placeId":"ChIJdw6JZ-Amy0wRRhak7VjoJyo"}
+        ],
+        "mapOptions": {"center":{"lat":38.0,"lng":-100.0},"fullscreenControl":true,"mapTypeControl":false,"streetViewControl":false,"zoom":4,"zoomControl":true,"maxZoom":17,"mapId":""},
+        "mapsApiKey": "AIzaSyAkrrVMvox6Casojz1RxQrXqowQWivG7Tk",
+        "capabilities": {"input":false,"autocomplete":false,"directions":false,"distanceMatrix":false,"details":false,"actions":false}
+      };
+
+      function initMap() {
+        new LocatorPlus(CONFIGURATION);
+      }
+    </script>
+    <script id="locator-result-items-tmpl" type="text/x-handlebars-template">
+      {{#each locations}}
+        <li class="location-result" data-location-index="{{index}}">
+          <button class="select-location">
+            <h2 class="name">{{title}}</h2>
+          </button>
+          <div class="address">{{address1}}<br>{{address2}}</div>
+          <a class="directions-button" href="" target="_blank" title="Get directions to this location on Google Maps">
+            <svg width="34" height="34" viewBox="0 0 34 34"
+                  fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.5867 9.24375L17.9403 8.8902V8.8902L17.5867 9.24375ZM16.4117 9.24375L16.7653 9.59731L16.7675 9.59502L16.4117 9.24375ZM8.91172 16.7437L8.55817 16.3902L8.91172 16.7437ZM8.91172 17.9229L8.55817 18.2765L8.55826 18.2766L8.91172 17.9229ZM16.4117 25.4187H16.9117V25.2116L16.7652 25.0651L16.4117 25.4187ZM16.4117 25.4229H15.9117V25.63L16.0582 25.7765L16.4117 25.4229ZM25.0909 17.9229L25.4444 18.2765L25.4467 18.2742L25.0909 17.9229ZM25.4403 16.3902L17.9403 8.8902L17.2332 9.5973L24.7332 17.0973L25.4403 16.3902ZM17.9403 8.8902C17.4213 8.3712 16.5737 8.3679 16.0559 8.89248L16.7675 9.59502C16.8914 9.4696 17.1022 9.4663 17.2332 9.5973L17.9403 8.8902ZM16.0582 8.8902L8.55817 16.3902L9.26527 17.0973L16.7653 9.5973L16.0582 8.8902ZM8.55817 16.3902C8.0379 16.9105 8.0379 17.7562 8.55817 18.2765L9.26527 17.5694C9.13553 17.4396 9.13553 17.227 9.26527 17.0973L8.55817 16.3902ZM8.55826 18.2766L16.0583 25.7724L16.7652 25.0651L9.26517 17.5693L8.55826 18.2766ZM15.9117 25.4187V25.4229H16.9117V25.4187H15.9117ZM16.0582 25.7765C16.5784 26.2967 17.4242 26.2967 17.9444 25.7765L17.2373 25.0694C17.1076 25.1991 16.895 25.1991 16.7653 25.0694L16.0582 25.7765ZM17.9444 25.7765L25.4444 18.2765L24.7373 17.5694L17.2373 25.0694L17.9444 25.7765ZM25.4467 18.2742C25.9631 17.7512 25.9663 16.9096 25.438 16.3879L24.7354 17.0995C24.8655 17.2279 24.8687 17.4363 24.7351 17.5716L25.4467 18.2742Z" fill="#1967d2"/>
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M19 19.8333V17.75H15.6667V20.25H14V16.9167C14 16.4542 14.3708 16.0833 14.8333 16.0833H19V14L21.9167 16.9167L19 19.8333Z" fill="#1967d2"/>
+              <circle class="directions-button-background" cx="17" cy="17" r="16.5" stroke="#e0e0e0"/>
+            </svg>
+          </a>
+        </li>
+      {{/each}}
+    </script>
+  </head>
+  <body>
+    <div id="map-container">
+      <div id="locations-panel">
+        <div id="locations-panel-list">
+          <div class="section-name" id="location-results-section-name">
+            All locations
+          </div>
+          <div class="results">
+            <ul id="location-results-list"></ul>
+          </div>
+        </div>
+      </div>
+      <div id="gmp-map"></div>
+    </div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAk-O1j2W01c28yqYdPGFbfp2hrE6BEaH0&callback=initMap&libraries=places&solution_channel=GMP_QB_locatorplus_v9_c" async defer></script>
+  </body>
+</html>
+
 
     <main>
             <a href="/mountains/new"><button>Create New Adventure</button></a>
-        <div>
+        <div id="container">
+            
             <% for (let mountain of mountains) { %> 
-                <article>
+                <article class="allMountains">
                     <!-- <a href="/mountains/<%#= mountain._id %>"> -->
                         <h2
                             hx-get="/mountains/<%= mountain.id %>"
@@ -26,8 +413,23 @@
                 </article>            
             <% } %>
 
+        <!-- <script>
+            const modalHiked = document.querySelector("#modalhiked")
+            const modalHikedForm = document.querySelector("#modalhikedform")
+            const openmodal = document.querySelector("#openmodal")
+
+            openmodal.addEventListener("click", () => modalHiked.showModal())
+
+            modalHikedForm.addEventListener("submit", (event) => {
+                event.preventDefault()
+                const formData = new FormData(event.target)
+                alert(`Mountain ${formData.get(mountain.mountainsHiked)}`)
+                modalHiked.close()
+            })
+        </script> -->
+            <aside>
             <% for (let mountain of mountainsHiked) { %> 
-                <article>
+                <article id="completedMountains">
                     <!-- <a href="/mountains/<%#= mountain._id %>"> -->
                         <h2
                             hx-get="/mountains/<%= mountain.id %>"
@@ -43,8 +445,49 @@
                     <!-- </a> -->
                 </article>            
             <% } %>
-
+            </aside>
         </div>
+
+        <style>
+            body {
+                background-color: rgba(0,0,0,.5);
+            }
+            
+            #container {
+                font-size: x-small;
+                display: flex;
+                flex-wrap: wrap;
+                flex-direction: wrap;
+                align-items: center;
+                justify-content: space-around;
+                margin: auto;
+                
+                /* 
+                display: grid;
+                grid-template-areas: 
+                "header header header"
+                "section" "section" "aside"
+                "section" "section" "aside"
+                "section" "section" "aside"
+                "section" "section" "aside"
+                "footer footer footer";    
+                 */
+            }
+
+            .allMountains {
+                
+            }
+
+            /* section {
+                grid-area: section;
+            } */
+
+            aside {
+                /* grid-area: aside; */
+                background-color: blue;
+            } 
+
+        </style>
     </main>
 </body>
 </html>
