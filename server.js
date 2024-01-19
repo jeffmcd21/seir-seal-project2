@@ -3,6 +3,7 @@
 require("dotenv").config()
 const express = require("express")
 const registerGlobalMiddleware = require("./utils/middleware")
+    // const apiKey = process.env.API_KEY;
 
 // ~ APP OBJECT ~ //
 const app = express()

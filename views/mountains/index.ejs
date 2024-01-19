@@ -34,8 +34,6 @@
         height: 75%;
         margin: 0;
         padding: 0;
-        margin: 10px;
-        padding-left: 10%;
       }
 
       #map-container {
@@ -94,6 +92,71 @@
         }
       }
 
+      #locations-panel-list > header {
+        padding: 1.4em 1.4em 0 1.4em;
+      }
+
+      #locations-panel-list h1.search-title {
+        font-size: 1em;
+        font-weight: 500;
+        margin: 0;
+      }
+
+      #locations-panel-list h1.search-title > img {
+        vertical-align: bottom;
+        margin-top: -1em;
+      }
+
+      #locations-panel-list .search-input {
+        width: 100%;
+        margin-top: 0.8em;
+        position: relative;
+      }
+
+      #locations-panel-list .search-input input {
+        width: 100%;
+        border: 1px solid #80868b;
+        border-radius: 0.3em;
+        height: 2.7em;
+        box-sizing: border-box;
+        padding: 0 1em 0 2.5em;
+        font-size: 0.9em;
+      }
+
+      #locations-panel-list .search-input input:focus {
+        outline: 2px solid #1e88e5;
+      }
+
+      #locations-panel-list .search-input input::placeholder {
+        color: #212121;
+        opacity: 0.5;
+      }
+
+      #locations-panel-list .search-input-overlay {
+        position: absolute;
+      }
+
+      #locations-panel-list .search-input-overlay.search {
+        left: 2px;
+        top: 2px;
+        bottom: 2px;
+        width: 2.4em;
+      }
+
+      #locations-panel-list .search-input-overlay.search button {
+        width: 100%;
+        height: 100%;
+        border-radius: 0.2em;
+        color: black;
+        background: transparent;
+      }
+
+      #locations-panel-list .search-input-overlay.search .icon {
+        margin-top: 0.15em;
+        vertical-align: top;
+        width: 0.9em;
+      }
+
       #locations-panel-list .section-name {
         font-weight: 500;
         font-size: 0.9em;
@@ -150,6 +213,15 @@
         fill: rgba(255,255,255,0.01);
       }
 
+      #locations-panel-list .location-result .distance {
+        position: absolute;
+        top: 0.9em;
+        right: 0;
+        text-align: center;
+        font-size: 0.9em;
+        width: 5em;
+      }
+
       #location-results-list {
         list-style-type: none;
         margin: 0;
@@ -195,6 +267,8 @@
         const itemsTemplate = Handlebars.compile(
             document.getElementById('locator-result-items-tmpl').innerHTML);
 
+        locator.searchLocation = null;
+        locator.searchLocationMarker = null;
         locator.selectedLocationIdx = null;
         locator.userCountry = null;
 
@@ -234,6 +308,9 @@
         // Fit map to marker bounds.
         locator.updateBounds = function() {
           const bounds = new google.maps.LatLngBounds();
+          if (locator.searchLocationMarker) {
+            bounds.extend(locator.searchLocationMarker.getPosition());
+          }
           for (let i = 0; i < markers.length; i++) {
             bounds.extend(markers[i].getPosition());
           }
@@ -242,6 +319,22 @@
         if (locator.locations.length) {
           locator.updateBounds();
         }
+
+        // Get the distance of a store location to the user's location,
+        // used in sorting the list.
+        const getLocationDistance = function(location) {
+          if (!locator.searchLocation) return null;
+
+          // Use travel distance if available (from Distance Matrix).
+          if (location.travelDistanceValue != null) {
+            return location.travelDistanceValue;
+          }
+
+          // Fall back to straight-line distance.
+          return google.maps.geometry.spherical.computeDistanceBetween(
+              new google.maps.LatLng(location.coords),
+              locator.searchLocation.location);
+        };
 
         // Render the results list --------------------------------------------------
         const getResultIndex = function(elem) {
@@ -253,7 +346,15 @@
           for (let i = 0; i < locations.length; i++) {
             locations[i].index = i;
           }
-          sectionNameEl.textContent = `All locations (${locations.length})`;
+          if (locator.searchLocation) {
+            sectionNameEl.textContent =
+                'Nearest locations (' + locations.length + ')';
+            locations.sort(function(a, b) {
+              return getLocationDistance(a) - getLocationDistance(b);
+            });
+          } else {
+            sectionNameEl.textContent = `All locations (${locations.length})`;
+          }
           const resultItemContext = {locations: locations};
           resultsContainerEl.innerHTML = itemsTemplate(resultItemContext);
           for (let item of resultsContainerEl.children) {
@@ -291,64 +392,212 @@
         };
 
         // Optional capability initialization --------------------------------------
+        initializeSearchInput(locator);
+        initializeDistanceMatrix(locator);
 
         // Initial render of results -----------------------------------------------
         locator.renderResultsList();
+      }
+
+      /** When the search input capability is enabled, initialize it. */
+      function initializeSearchInput(locator) {
+        const geocodeCache = new Map();
+        const geocoder = new google.maps.Geocoder();
+
+        const searchInputEl = document.getElementById('location-search-input');
+        const searchButtonEl = document.getElementById('location-search-button');
+
+        const updateSearchLocation = function(address, location) {
+          if (locator.searchLocationMarker) {
+            locator.searchLocationMarker.setMap(null);
+          }
+          if (!location) {
+            locator.searchLocation = null;
+            return;
+          }
+          locator.searchLocation = {'address': address, 'location': location};
+          locator.searchLocationMarker = new google.maps.Marker({
+            position: location,
+            map: locator.map,
+            title: 'My location',
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 12,
+              fillColor: '#3367D6',
+              fillOpacity: 0.5,
+              strokeOpacity: 0,
+            }
+          });
+
+          // Update the locator's idea of the user's country, used for units. Use
+          // `formatted_address` instead of the more structured `address_components`
+          // to avoid an additional billed call.
+          const addressParts = address.split(' ');
+          locator.userCountry = addressParts[addressParts.length - 1];
+
+          // Update map bounds to include the new location marker.
+          locator.updateBounds();
+
+          // Update the result list so we can sort it by proximity.
+          locator.renderResultsList();
+
+          locator.updateTravelTimes();
+        };
+
+        const geocodeSearch = function(query) {
+          if (!query) {
+            return;
+          }
+
+          const handleResult = function(geocodeResult) {
+            searchInputEl.value = geocodeResult.formatted_address;
+            updateSearchLocation(
+                geocodeResult.formatted_address, geocodeResult.geometry.location);
+          };
+
+          if (geocodeCache.has(query)) {
+            handleResult(geocodeCache.get(query));
+            return;
+          }
+          const request = {address: query, bounds: locator.map.getBounds()};
+          geocoder.geocode(request, function(results, status) {
+            if (status === 'OK') {
+              if (results.length > 0) {
+                const result = results[0];
+                geocodeCache.set(query, result);
+                handleResult(result);
+              }
+            }
+          });
+        };
+
+        // Set up geocoding on the search input.
+        searchButtonEl.addEventListener('click', function() {
+          geocodeSearch(searchInputEl.value.trim());
+        });
+
+        // Initialize Autocomplete.
+        initializeSearchInputAutocomplete(
+            locator, searchInputEl, geocodeSearch, updateSearchLocation);
+      }
+
+      /** Add Autocomplete to the search input. */
+      function initializeSearchInputAutocomplete(
+          locator, searchInputEl, fallbackSearch, searchLocationUpdater) {
+        // Set up Autocomplete on the search input. Bias results to map viewport.
+        const autocomplete = new google.maps.places.Autocomplete(searchInputEl, {
+          types: ['geocode'],
+          fields: ['place_id', 'formatted_address', 'geometry.location']
+        });
+        autocomplete.bindTo('bounds', locator.map);
+        autocomplete.addListener('place_changed', function() {
+          const placeResult = autocomplete.getPlace();
+          if (!placeResult.geometry) {
+            // Hitting 'Enter' without selecting a suggestion will result in a
+            // placeResult with only the text input value as the 'name' field.
+            fallbackSearch(placeResult.name);
+            return;
+          }
+          searchLocationUpdater(
+              placeResult.formatted_address, placeResult.geometry.location);
+        });
+      }
+
+      /** Initialize Distance Matrix for the locator. */
+      function initializeDistanceMatrix(locator) {
+        const distanceMatrixService = new google.maps.DistanceMatrixService();
+
+        // Annotate travel times to the selected location using Distance Matrix.
+        locator.updateTravelTimes = function() {
+          if (!locator.searchLocation) return;
+
+          const units = (locator.userCountry === 'USA') ?
+              google.maps.UnitSystem.IMPERIAL :
+              google.maps.UnitSystem.METRIC;
+          const request = {
+            origins: [locator.searchLocation.location],
+            destinations: locator.locations.map(function(x) {
+              return x.coords;
+            }),
+            travelMode: google.maps.TravelMode.DRIVING,
+            unitSystem: units,
+          };
+          const callback = function(response, status) {
+            if (status === 'OK') {
+              const distances = response.rows[0].elements;
+              for (let i = 0; i < distances.length; i++) {
+                const distResult = distances[i];
+                let travelDistanceText, travelDistanceValue;
+                if (distResult.status === 'OK') {
+                  travelDistanceText = distResult.distance.text;
+                  travelDistanceValue = distResult.distance.value;
+                }
+                const location = locator.locations[i];
+                location.travelDistanceText = travelDistanceText;
+                location.travelDistanceValue = travelDistanceValue;
+              }
+
+              // Re-render the results list, in case the ordering has changed.
+              locator.renderResultsList();
+            }
+          };
+          distanceMatrixService.getDistanceMatrix(request, callback);
+        };
       }
     </script>
     <script>
       const CONFIGURATION = {
         "locations": [
-          {"title":"Mount Marcy","address1":"Mt Marcy","address2":"Keene, NY 12943, USA","coords":{"lat":44.11256900604449,"lng":-73.92347103558197},"placeId":"ChIJmyyphebcykwRIPrFF3MfEN8"},
-          {"title":"Algonquin Peak","address1":"Algonquin Peak","address2":"North Elba, NY 12946, USA","coords":{"lat":44.14365580103231,"lng":-73.98653033558197},"placeId":"ChIJHUunS3LeykwRQcY6Ocz_jZs"},
-          {"title":"Mount Haystack","address1":"Mt Haystack","address2":"Keene, NY 12943, USA","coords":{"lat":44.10560929999999,"lng":-73.90042496441801},"placeId":"ChIJ1R5Okc3cykwRrl5Y-kAvKnw"},
-          {"title":"Mount Skylight","address1":"Mt Skylight","address2":"Keene, NY 12943, USA","coords":{"lat":44.099506404724146,"lng":-73.93070396441803},"placeId":"ChIJ8SwXj5TcykwRvTjqgikGe48"},
-          {"title":"Whiteface Mountain","address1":"Whiteface Mountain","address2":"Wilmington, NY 12997, USA","coords":{"lat":44.36587273007045,"lng":-73.90264023558196},"placeId":"ChIJZ9ZXhcz9ykwRazeg62rq1oE"},
-          {"title":"Dix Mountain","address1":"Dix Mountain","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.08226789303084,"lng":-73.78624173558197},"placeId":"ChIJ1eEyOGrBykwRgjbPxuIeoaM"},
-          {"title":"Gray Peak","address1":"Gray Peak","address2":"Keene, NY 12943, USA","coords":{"lat":44.11145810633408,"lng":-73.93488189325409},"placeId":"ChIJE-ihePrcykwR3K-34IoWFc0"},
-          {"title":"Iroquois Peak","address1":"Iroquois Peak","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.13680480377332,"lng":-73.99814359140167},"placeId":"ChIJWViiymXeykwRh7laV_6pB70"},
-          {"title":"Basin Mountain","address1":"Basin Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.12115619809863,"lng":-73.88625806441802},"placeId":"ChIJcd4I2tLCykwRZMMxkNpQD58"},
-          {"title":"Gothics","address1":"Gothics","address2":"Keene, NY 12943, USA","coords":{"lat":44.12780756040835,"lng":-73.85736116752852},"placeId":"ChIJ2z_Aq-rCykwRLP66taNuvV0"},
-          {"title":"Mount Colden","address1":"Mt Colden","address2":"Keene, NY 12943, USA","coords":{"lat":44.127066910222496,"lng":-73.95989412209015},"placeId":"ChIJHWBNg7XdykwR-_5L0bs9dYE"},
-          {"title":"Giant Mountain","address1":"Giant Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.161265009990494,"lng":-73.72047726441802},"placeId":"ChIJfWpNMlLqykwRHAliseWeAuo"},
-          {"title":"Nippletop","address1":"Nippletop","address2":"Keene, NY 12943, USA","coords":{"lat":44.089394087919494,"lng":-73.81574331349182},"placeId":"ChIJEZwEVcPDykwRl5WwzVSrY2I"},
-          {"title":"Santanoni Peak","address1":"Santanoni Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.082273393031585,"lng":-74.13098013558196},"placeId":"ChIJIb8wxnEny0wROoVstYWq6-8"},
-          {"title":"Mount Redfield","address1":"Mt Redfield","address2":"Keene, NY 12943, USA","coords":{"lat":44.094777000000015,"lng":-73.94986063558196},"placeId":"ChIJ6UHAKYbcykwRLBI9glCcoH4"},
-          {"title":"Wright Peak","address1":"Wright Peak","address2":"North Elba, NY 12946, USA","coords":{"lat":44.151695606245674,"lng":-73.98015216441803},"placeId":"ChIJzeyNlQ7eykwR_y5tb_RMPfU"},
-          {"title":"Saddleback Mountain","address1":"Saddleback Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.126433698786634,"lng":-73.87484730674592},"placeId":"ChIJ0Q4TLMnCykwR12L-ZoQdyMk"},
-          {"title":"Panther Peak","address1":"Panther Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.098460843779655,"lng":-74.1320809067459},"placeId":"ChIJBx5avzgny0wR54rMI0CqyXM"},
-          {"title":"Table Top Mountain","address1":"Table Top Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.14037959163477,"lng":-73.91608886441803},"placeId":"ChIJz8KQanLdykwRCJ62smRkP8k"},
-          {"title":"Rocky Peak Ridge","address1":"Rocky Peak Ridge","address2":"Keene, NY 12943, USA","coords":{"lat":44.15443630243837,"lng":-73.70555063558197},"placeId":"ChIJITgzPvrqykwRbZtNH0zZ7T8"},
-          {"title":"Macomb Mountain","address1":"Macomb Mountain","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.05184447503803,"lng":-73.78007579140169},"placeId":"ChIJYVLTq9DGykwRCHL7YGJneUA"},
-          {"title":"Armstrong Mountain","address1":"Armstrong Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.1347741,"lng":-73.84902373558197},"placeId":"ChIJcd7jGZfCykwRIuMfurDEe0o"},
-          {"title":"Hough Peak","address1":"Hough Peak","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.069474874096464,"lng":-73.7776191067459},"placeId":"ChIJw47_cjDBykwRDdnASi0WF9c"},
-          {"title":"Seward Mountain","address1":"Seward Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.1597798,"lng":-74.19932926441803},"placeId":"ChIJa0oVlUoiy0wRbnt9yTWlX4Q"},
-          {"title":"Mount Marshall","address1":"Mt Marshall","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.127538397862345,"lng":-74.01183029325409},"placeId":"ChIJO9FbrPTeykwRPIK73QXWF7E"},
-          {"title":"Allen Mountain","address1":"Allen Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.07087378309436,"lng":-73.93959246441801},"placeId":"ChIJ6T9sOULbykwR4aPSBaFfoJc"},
-          {"title":"Big Slide Mountain","address1":"Big Slide Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.18226440606917,"lng":-73.87041483558197},"placeId":"ChIJd-tZBMznykwRSq3SsQfHmP8"},
-          {"title":"Esther Mountain","address1":"Esther Mountain","address2":"Wilmington, NY 12997, USA","coords":{"lat":44.387006934326664,"lng":-73.88986193558195},"placeId":"ChIJM73PNH3-ykwRYAxOR2flX_k"},
-          {"title":"Upper Wolfjaw Mountain","address1":"Upper Wolfjaw Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.140614899365254,"lng":-73.84513483558197},"placeId":"ChIJmWjeSpnCykwRmEePSIj-Wrk"},
-          {"title":"Lower Wolfjaw Mountain","address1":"Lower Wolfjaw Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.14837680164801,"lng":-73.83266672209015},"placeId":"ChIJXVMIVS_oykwRqfGUzcSvhy0"},
-          {"title":"Street Mountain","address1":"Street Mountain","address2":"North Elba, NY 12946, USA","coords":{"lat":44.17934658862623,"lng":-74.02720072209014},"placeId":"ChIJI9bUJXLgykwRitIGBrqP0Co"},
-          {"title":"Phelps Mountain","address1":"Phelps Mountain","address2":"North Elba, NY 12943, USA","coords":{"lat":44.15699570000002,"lng":-73.92097213558196},"placeId":"ChIJ6zPPMn7nykwR-mrO9CrPhKc"},
-          {"title":"Donaldson Mountain","address1":"Donaldson Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.15393940237358,"lng":-74.2109749067459},"placeId":"ChIJQcjrprEjy0wREMmVjnD_agE"},
-          {"title":"Seymour Mountain","address1":"Seymour Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.15782700288068,"lng":-74.17208420674592},"placeId":"ChIJgfLqk4Ahy0wR68TAyJvSE6M"},
-          {"title":"Sawteeth","address1":"Sawteeth","address2":"Keene, NY 12943, USA","coords":{"lat":44.11334840584131,"lng":-73.85066163558197},"placeId":"ChIJMSKqgvzCykwRJYm9KmgSx34"},
-          {"title":"Cascade Mountain","address1":"Cascade Mountain","address2":"Keene, NY 12942, USA","coords":{"lat":44.21865171081945,"lng":-73.86013753558198},"placeId":"ChIJQQHwZHTmykwRJTdhJIdPRCQ"},
-          {"title":"South Dix","address1":"South Dix","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.060038580272206,"lng":-73.77429603558198},"placeId":"ChIJN94nrdTGykwR5gKoD1Q8CIY"},
-          {"title":"Porter Mountain","address1":"Porter Mountain","address2":"Keene, NY 12942, USA","coords":{"lat":44.21526468304531,"lng":-73.8436041460327},"placeId":"ChIJM2643gXmykwRTPbUcCpx-Rg"},
-          {"title":"Mount Colvin","address1":"Mt Colvin","address2":"Keene, NY 12943, USA","coords":{"lat":44.09399633811599,"lng":-73.83457753558196},"placeId":"ChIJRWvHurvDykwRv7HTVEsFy3Y"},
-          {"title":"Mount Emmons","address1":"Mt Emmons","address2":"Harrietstown, NY, USA","coords":{"lat":44.143692896894606,"lng":-74.21408395092621},"placeId":"ChIJB1oS0L0jy0wRZiiZJGO18qc"},
-          {"title":"Dial Mountain","address1":"Dial Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.10587039221342,"lng":-73.7959862932541},"placeId":"ChIJSyqbhCnCykwRKC7O1jdlKEI"},
-          {"title":"Grace Mountain","address1":"North Hudson","address2":"NY 12855, USA","coords":{"lat":44.06552569999998,"lng":-73.75743936441805},"placeId":"ChIJudwowtDAykwRh69P52ayJcw"},
-          {"title":"Blake Peak","address1":"Blake Peak","address2":"Keene, NY 12943, USA","coords":{"lat":44.08142758584374,"lng":-73.84457763558196},"placeId":"ChIJc2UjZpDDykwROTAahzlV9DA"},
-          {"title":"Cliff Mountain","address1":"Cliff Mountain","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.10304856593578,"lng":-73.97513983558197},"placeId":"ChIJaRnuVxPcykwRWuaV-scAm-U"},
-          {"title":"Nye Mountain","address1":"Nye Mountain","address2":"North Elba, NY 12946, USA","coords":{"lat":44.18722547393831,"lng":-74.02373253558196},"placeId":"ChIJ19MxfGrgykwRZ-u_ms4FR7Y"},
-          {"title":"Couchsachraga Peak","address1":"Couchsachraga Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.09562230523025,"lng":-74.16014853558198},"placeId":"ChIJdw6JZ-Amy0wRRhak7VjoJyo"}
+          {"title":"Mount Marcy","address1":"Mt Marcy","address2":"Keene, NY 12943, USA","coords":{"lat":44.11253049092573,"lng":-73.92348176441803},"placeId":"ChIJmyyphebcykwRIPrFF3MfEN8"},
+          {"title":"Algonquin Peak","address1":"Algonquin Peak","address2":"North Elba, NY 12946, USA","coords":{"lat":44.143671198966715,"lng":-73.98654106441803},"placeId":"ChIJHUunS3LeykwRQcY6Ocz_jZs"},
+          {"title":"Mount Haystack","address1":"Mt Haystack","address2":"Keene, NY 12943, USA","coords":{"lat":44.10562470785464,"lng":-73.90041423558195},"placeId":"ChIJ1R5Okc3cykwRrl5Y-kAvKnw"},
+          {"title":"Mount Skylight","address1":"Mt Skylight","address2":"Keene, NY 12943, USA","coords":{"lat":44.09949099527487,"lng":-73.93070396441803},"placeId":"ChIJ8SwXj5TcykwRvTjqgikGe48"},
+          {"title":"Whiteface Mountain","address1":"Whiteface Mountain","address2":"Wilmington, NY 12997, USA","coords":{"lat":44.36588806992855,"lng":-73.90265096441802},"placeId":"ChIJZ9ZXhcz9ykwRazeg62rq1oE"},
+          {"title":"Dix Mountain","address1":"Dix Mountain","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.08226789303084,"lng":-73.78625246441803},"placeId":"ChIJ1eEyOGrBykwRgjbPxuIeoaM"},
+          {"title":"Gray Peak","address1":"Gray Peak","address2":"Keene, NY 12943, USA","coords":{"lat":44.111519731630224,"lng":-73.93489262209015},"placeId":"ChIJE-ihePrcykwR3K-34IoWFc0"},
+          {"title":"Iroquois Peak","address1":"Iroquois Peak","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.13702039950502,"lng":-73.99821869325409},"placeId":"ChIJWViiymXeykwRh7laV_6pB70"},
+          {"title":"Basin Mountain","address1":"Basin Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.121163900000035,"lng":-73.88625806441802},"placeId":"ChIJcd4I2tLCykwRZMMxkNpQD58"},
+          {"title":"Gothics","address1":"Gothics","address2":"Keene, NY 12943, USA","coords":{"lat":44.127861467627,"lng":-73.85734239206542},"placeId":"ChIJ2z_Aq-rCykwRLP66taNuvV0"},
+          {"title":"Mount Colden","address1":"Mt Colden","address2":"Keene, NY 12943, USA","coords":{"lat":44.12705150795786,"lng":-73.95985120674591},"placeId":"ChIJHWBNg7XdykwR-_5L0bs9dYE"},
+          {"title":"Giant Mountain","address1":"Giant Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.16128040333118,"lng":-73.72047726441802},"placeId":"ChIJfWpNMlLqykwRHAliseWeAuo"},
+          {"title":"Nippletop","address1":"Nippletop","address2":"Keene, NY 12943, USA","coords":{"lat":44.089409499999995,"lng":-73.81575404232788},"placeId":"ChIJEZwEVcPDykwRl5WwzVSrY2I"},
+          {"title":"Santanoni Peak","address1":"Santanoni Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.08228110000002,"lng":-74.13098013558196},"placeId":"ChIJIb8wxnEny0wROoVstYWq6-8"},
+          {"title":"Mount Redfield","address1":"Mt Redfield","address2":"Keene, NY 12943, USA","coords":{"lat":44.094777000000015,"lng":-73.94987136441802},"placeId":"ChIJ6UHAKYbcykwRLBI9glCcoH4"},
+          {"title":"Wright Peak","address1":"Wright Peak","address2":"North Elba, NY 12946, USA","coords":{"lat":44.15170330416478,"lng":-73.98015216441803},"placeId":"ChIJzeyNlQ7eykwR_y5tb_RMPfU"},
+          {"title":"Saddleback Mountain","address1":"Saddleback Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.1264414,"lng":-73.87485267116395},"placeId":"ChIJ0Q4TLMnCykwR12L-ZoQdyMk"},
+          {"title":"Panther Peak","address1":"Panther Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.09840690973583,"lng":-74.13211309325408},"placeId":"ChIJBx5avzgny0wR54rMI0CqyXM"},
+          {"title":"Table Top Mountain","address1":"Table Top Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.140271799999994,"lng":-73.91607813558197},"placeId":"ChIJz8KQanLdykwRCJ62smRkP8k"},
+          {"title":"Rocky Peak Ridge","address1":"Rocky Peak Ridge","address2":"Keene, NY 12943, USA","coords":{"lat":44.15441320974745,"lng":-73.70558818650818},"placeId":"ChIJITgzPvrqykwRbZtNH0zZ7T8"},
+          {"title":"Macomb Mountain","address1":"Macomb Mountain","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.051690256200324,"lng":-73.78019917301637},"placeId":"ChIJYVLTq9DGykwRCHL7YGJneUA"},
+          {"title":"Armstrong Mountain","address1":"Armstrong Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.13475869974518,"lng":-73.84904519325409},"placeId":"ChIJcd7jGZfCykwRIuMfurDEe0o"},
+          {"title":"Hough Peak","address1":"Hough Peak","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.06951341726401,"lng":-73.77766202209014},"placeId":"ChIJw47_cjDBykwRDdnASi0WF9c"},
+          {"title":"Seward Mountain","address1":"Seward Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.15976440626781,"lng":-74.19933999325409},"placeId":"ChIJa0oVlUoiy0wRbnt9yTWlX4Q"},
+          {"title":"Mount Marshall","address1":"Mt Marshall","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.12754609893165,"lng":-74.01180883558197},"placeId":"ChIJO9FbrPTeykwRPIK73QXWF7E"},
+          {"title":"Allen Mountain","address1":"Allen Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.07086607464006,"lng":-73.93959246441801},"placeId":"ChIJ6T9sOULbykwR4aPSBaFfoJc"},
+          {"title":"Big Slide Mountain","address1":"Big Slide Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.18224901820449,"lng":-73.87042556441803},"placeId":"ChIJd-tZBMznykwRSq3SsQfHmP8"},
+          {"title":"Esther Mountain","address1":"Esther Mountain","address2":"Wilmington, NY 12997, USA","coords":{"lat":44.3870146014885,"lng":-73.88987266441801},"placeId":"ChIJM73PNH3-ykwRYAxOR2flX_k"},
+          {"title":"Upper Wolfjaw Mountain","address1":"Upper Wolfjaw Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.140607199999984,"lng":-73.84512410674591},"placeId":"ChIJmWjeSpnCykwRmEePSIj-Wrk"},
+          {"title":"Lower Wolfjaw Mountain","address1":"Lower Wolfjaw Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.148361404941035,"lng":-73.83266672209015},"placeId":"ChIJXVMIVS_oykwRqfGUzcSvhy0"},
+          {"title":"Street Mountain","address1":"Street Mountain","address2":"North Elba, NY 12946, USA","coords":{"lat":44.179600500379216,"lng":-74.02745821415557},"placeId":"ChIJI9bUJXLgykwRitIGBrqP0Co"},
+          {"title":"Phelps Mountain","address1":"Phelps Mountain","address2":"North Elba, NY 12943, USA","coords":{"lat":44.156872544219034,"lng":-73.92123499206542},"placeId":"ChIJ6zPPMn7nykwR-mrO9CrPhKc"},
+          {"title":"Donaldson Mountain","address1":"Donaldson Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.154208818701775,"lng":-74.21113047486877},"placeId":"ChIJQcjrprEjy0wREMmVjnD_agE"},
+          {"title":"Seymour Mountain","address1":"Seymour Mountain","address2":"Harrietstown, NY, USA","coords":{"lat":44.15784239711832,"lng":-74.1721163932541},"placeId":"ChIJgfLqk4Ahy0wR68TAyJvSE6M"},
+          {"title":"Sawteeth","address1":"Sawteeth","address2":"Keene, NY 12943, USA","coords":{"lat":44.114211126544944,"lng":-73.85078501719666},"placeId":"ChIJMSKqgvzCykwRJYm9KmgSx34"},
+          {"title":"Cascade Mountain","address1":"Cascade Mountain","address2":"Keene, NY 12942, USA","coords":{"lat":44.218674778358086,"lng":-73.8601589932541},"placeId":"ChIJQQHwZHTmykwRJTdhJIdPRCQ"},
+          {"title":"South Dix","address1":"South Dix","address2":"North Hudson, NY 12855, USA","coords":{"lat":44.060054000000015,"lng":-73.7743174932541},"placeId":"ChIJN94nrdTGykwR5gKoD1Q8CIY"},
+          {"title":"Porter Mountain","address1":"Porter Mountain","address2":"Keene, NY 12942, USA","coords":{"lat":44.214834062563064,"lng":-73.8432608232788},"placeId":"ChIJM2643gXmykwRTPbUcCpx-Rg"},
+          {"title":"Mount Colvin","address1":"Mt Colvin","address2":"Keene, NY 12943, USA","coords":{"lat":44.093973221786584,"lng":-73.83463117976225},"placeId":"ChIJRWvHurvDykwRv7HTVEsFy3Y"},
+          {"title":"Mount Emmons","address1":"Mt Emmons","address2":"Harrietstown, NY, USA","coords":{"lat":44.143423432561846,"lng":-74.21417514603272},"placeId":"ChIJB1oS0L0jy0wRZiiZJGO18qc"},
+          {"title":"Dial Mountain","address1":"Dial Mountain","address2":"Keene, NY 12943, USA","coords":{"lat":44.105893503891785,"lng":-73.7959862932541},"placeId":"ChIJSyqbhCnCykwRKC7O1jdlKEI"},
+          {"title":"Grace Mountain","address1":"North Hudson","address2":"NY 12855, USA","coords":{"lat":44.065533409149836,"lng":-73.75742863558199},"placeId":"ChIJudwowtDAykwRh69P52ayJcw"},
+          {"title":"Blake Peak","address1":"Blake Peak","address2":"Keene, NY 12943, USA","coords":{"lat":44.08143914646131,"lng":-73.844585682209},"placeId":"ChIJc2UjZpDDykwROTAahzlV9DA"},
+          {"title":"Cliff Mountain","address1":"Cliff Mountain","address2":"Newcomb, NY 12946, USA","coords":{"lat":44.1031872424899,"lng":-73.97517202209015},"placeId":"ChIJaRnuVxPcykwRWuaV-scAm-U"},
+          {"title":"Nye Mountain","address1":"Nye Mountain","address2":"North Elba, NY 12946, USA","coords":{"lat":44.18732548654363,"lng":-74.02374326441802},"placeId":"ChIJ19MxfGrgykwRZ-u_ms4FR7Y"},
+          {"title":"Couchsachraga Peak","address1":"Couchsachraga Peak","address2":"Newcomb, NY, USA","coords":{"lat":44.0955837790689,"lng":-74.16019145092622},"placeId":"ChIJdw6JZ-Amy0wRRhak7VjoJyo"}
         ],
         "mapOptions": {"center":{"lat":38.0,"lng":-100.0},"fullscreenControl":true,"mapTypeControl":false,"streetViewControl":false,"zoom":4,"zoomControl":true,"maxZoom":17,"mapId":""},
-        "mapsApiKey": "AIzaSyAkrrVMvox6Casojz1RxQrXqowQWivG7Tk",
-        "capabilities": {"input":false,"autocomplete":false,"directions":false,"distanceMatrix":false,"details":false,"actions":false}
+        "mapsApiKey": "apiKey",
+        "capabilities": {"input":true,"autocomplete":true,"directions":false,"distanceMatrix":true,"details":false,"actions":false}
       };
 
       function initMap() {
@@ -362,6 +611,9 @@
             <h2 class="name">{{title}}</h2>
           </button>
           <div class="address">{{address1}}<br>{{address2}}</div>
+          {{#if travelDistanceText}}
+            <div class="distance">{{travelDistanceText}}</div>
+          {{/if}}
           <a class="directions-button" href="" target="_blank" title="Get directions to this location on Google Maps">
             <svg width="34" height="34" viewBox="0 0 34 34"
                   fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -378,6 +630,20 @@
     <div id="map-container">
       <div id="locations-panel">
         <div id="locations-panel-list">
+          <header>
+            <h1 class="search-title">
+              <img src="https://fonts.gstatic.com/s/i/googlematerialicons/place/v15/24px.svg" alt=""/>
+              Find a location near you
+            </h1>
+            <div class="search-input">
+              <input id="location-search-input" placeholder="Enter your address or zip code">
+              <div id="search-overlay-search" class="search-input-overlay search">
+                <button id="location-search-button">
+                  <img class="icon" src="https://fonts.gstatic.com/s/i/googlematerialicons/search/v11/24px.svg" alt="Search"/>
+                </button>
+              </div>
+            </div>
+          </header>
           <div class="section-name" id="location-results-section-name">
             All locations
           </div>
@@ -388,17 +654,16 @@
       </div>
       <div id="gmp-map"></div>
     </div>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAk-O1j2W01c28yqYdPGFbfp2hrE6BEaH0&callback=initMap&libraries=places&solution_channel=GMP_QB_locatorplus_v9_c" async defer></script>
-  </body>
-</html>
+    <script src="https://maps.googleapis.com/maps/api/js?key=<%= process.env.API_KEY %>&callback=initMap&libraries=places,geometry&solution_channel=GMP_QB_locatorplus_v9_cABD" async defer></script>
+  <!-- </body>
+</html> -->
 
 
-    <main>
-            
+    <main>  
         <div id="container">
             
             <% for (let mountain of mountains) { %> 
-                <article class="allMountains">
+                <article class="allMountains grid-item">
                     <!-- <a href="/mountains/<%#= mountain._id %>"> -->
                         <h2
                             hx-get="/mountains/<%= mountain.id %>"
@@ -431,7 +696,7 @@
         </script> -->
             <aside>
             <% for (let mountain of mountainsHiked) { %> 
-                <article id="completedMountains">
+                <article id="completedMountains grid-item">
                     <!-- <a href="/mountains/<%#= mountain._id %>"> -->
                         <h2
                             hx-get="/mountains/<%= mountain.id %>"
@@ -464,6 +729,10 @@
             }
             
             #container {
+                display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Adjust column widths as needed */
+    gap: 1rem; /* Adjust spacing between items *
+
                 font-size: x-small;
                 display: flex;
                 flex-wrap: wrap;
@@ -471,8 +740,10 @@
                 align-items: center;
                 justify-content: space-around;
                 margin: 0 auto;
-                padding-top: 5%;
-                padding-right: 5%;
+                /* padding-top: 5%;
+                padding-right: 5%; */
+                background-color: rgb(106, 187, 133);
+                box-shadow: 5px 5px 15px #9dadff, -5px -5px 15px #9dadff;
                 
                 /* 
                 display: grid;
@@ -486,10 +757,19 @@
                  */
             }
 
+            .grid-item {
+  border: 1px solid #ccc; /* Optional: Add borders for visual clarity */
+  padding: 10px;          /* Optional: Add padding around content */
+}
+
             .allMountains {
                 display: flex;
                 flex-direction: row;
-                background-color: greenyellow;
+                background-color: rgb(45, 96, 147);
+                border-radius: 5px;
+                margin: 5px;
+                padding: 0 5px 0 5px;
+                box-shadow: 5px 5px 15px #fefefe, -5px -5px 15px #fffefe;
             }
 
             /* section {
@@ -497,9 +777,16 @@
             } */
 
             aside {
-                padding: auto;
+                display: grid;
+                /* flex-direction: row; */
+                /* padding: auto; */
                 /* grid-area: aside; */
                 background-color: blue;
+                color: whitesmoke;
+                border-radius: 5px;
+                margin: 10px;
+                padding: 5px;
+                justify-content: space-between;
             } 
 
         </style>

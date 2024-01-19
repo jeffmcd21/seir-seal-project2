@@ -2,11 +2,46 @@
 <!DOCTYPE html>
 <html lang="en">
     <%- include("../partials/head.ejs") %>
+    <style>
+
+        .edit {
+          position: relative;
+          /* display: flex;
+          flex-direction: wrap;
+          background-color: forestgreen;
+          justify-content: center; */
+        }
+    
+        /* .createAccount {
+          margin: 1%;
+        } */
+    
+        .overlay-form {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%); /* Center the form */
+          background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+          padding: 20px;
+          border-radius: 5px;
+          /* Adjust z-index if needed */
+        }
+    
+        .full-width-image {
+          width: 100%;
+          height: auto;
+          max-width: 100%;
+        }
+    
+      </style>
 <body>
     <%- include("../partials/header.ejs") %>
 
     <main>
-        <div>
+        <div class="edit">
+            <img src="https://i.imgur.com/R2scwV7.jpg" class="full-width-image">
+            <!-- https://3.bp.blogspot.com/-FJIfPGG0oMU/Up_IPn42XCI/AAAAAAAAV6s/ytglLLEUy8Y/s1600/20131201+HaBa+NG.jpg -->
+            <div class="overlay-form">
             <form action="/mountains/<%= mountain._id %>?_method=PUT" method="POST">
                 <fieldset>
                     <legend>Edit <%= mountain.mountainName %></legend><br>
@@ -43,6 +78,7 @@
                 <!-- <input type="submit" value="Update Adventure"/> -->
                 <button>Update Adventure</button>
             </form>
+            </div>
         </div>
     </main>
 </body>
