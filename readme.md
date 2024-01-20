@@ -6,7 +6,7 @@
 - **App Name:** Adirondack State Park
 - **Description:** Hiking the backcountry NY
 - **Github URL:** https://github.com/jeffmcd21/seir-seal-project2
-- **Deployed Website:** https://project-2-pc6u.onrender.com/
+- **Deployed Website:** https://project-2-pc6u.onrender.com/mountains
 - **Trello Board:** https://trello.com/invite/b/3bJYyONj/ATTIf74e3885fd5e6227185337d9cb2d72fb48855690/seir-seal-unit-2-project
 
 ## List of Dependencies
