@@ -2,11 +2,43 @@
 <!DOCTYPE html>
 <html lang="en">
     <%- include("../partials/head.ejs") %>
-<body>
-    <%- include("../partials/header.ejs") %>
 
-    <main>
-        <div>
+    <style>
+
+        .edit {
+          position: relative;
+          /* display: flex;
+          flex-direction: wrap;
+          background-color: forestgreen;
+          justify-content: center; */
+        }
+    
+        .overlay-form {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%); /* Center the form */
+          background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+          padding: 20px;
+          border-radius: 5px;
+          /* Adjust z-index if needed */
+        }
+    
+        .full-width-image {
+          width: 100%;
+          height: auto;
+          max-width: 100%;
+        }
+    
+      </style>
+
+    <body>
+        <%- include("../partials/header.ejs") %>
+        
+        <main>
+            <div class="new">
+            <img src="https://www.visittheusa.com/sites/default/files/styles/hero_l/public/images/hero_media_image/2016-10/HERO%201_Adirondacks_NY_GettyImages-546109107_Web72DPI.jpg?h=d7f28ecd&itok=MW_B4K9_" class="full-width-image">
+            <div class="overlay-form">
             <form action="/mountains" method="POST">
                 <fieldset>
                     <legend>Create a New Adventure</legend><br>
@@ -42,6 +74,7 @@
                 </fieldset>
                 <input type="submit" value="Add New Adventure"/>
             </form>
+            </div>
         </div>
     </main>
 </body>

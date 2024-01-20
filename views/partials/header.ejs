@@ -1,9 +1,77 @@
 
 <header>
-    <h1>Adirondack 46er</h1>
-    <a href="/mountains"><button>Back to Main</button></a>
-    <a href="/mountains/new"><button class="newHike">Create New Adventure</button></a>
-    <a href="/user/signup"><button>Signup</button></a>
-    <a href="/user/login"><button>Login</button></a>
-    <a href="/user/logout"><button>Logout</button></a>
+    <div class="container">
+        <div class="title">
+            <h1>Adirondack 46er</h1>
+            <!-- <img src="https://img.freepik.com/free-vector/hand-drawn-mountain-range-silhouette_23-2150429154.jpg?size=626&ext=jpg&ga=GA1.1.1412446893.1704585600&semt=ais" alt="Silhouette of mountain peaks" class="peaks-silhouette">
+        </div> -->
+        <div class="buttons">
+            <a href="/mountains"><button>Back to Main</button></a>
+            <a href="/mountains/new"><button class="newHike">Create New Adventure</button></a>
+            <a href="/user/signup"><button>Signup</button></a>
+            <a href="/user/login"><button>Login</button></a>
+            <a href="/user/logout"><button>Logout</button></a>
+        </div>
+    </div>
+
+    <style>
+
+        header {
+            display: flex;
+            justify-content: space-between; 
+            align-items: center;
+            padding: 1rem;
+            background-color: #8fd9fc; 
+            color: #372f2f;
+            font-family: sans-serif;
+            font-weight: bold;
+        }
+
+        .title {
+            flex-grow: 1;
+        }
+
+        .h1 {
+            margin: 0;
+        }
+
+        .title h1 {
+            background: linear-gradient(to right, #009688, #ff5722);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 3px rgba(0, 0, 0, 0.2), 0 3px 5px rgba(0, 0, 0, 0.3)
+        }
+
+        /* .peaks-silhouette {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.25; 
+        } */
+
+        .buttons {
+            display: flex;
+            margin-left: auto; 
+        }
+
+        button {
+            background-color: #555;
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 10px; 
+        }
+
+        button:hover {
+            background-color: #333; 
+        }
+
+        .newHike {
+            background-color: #00a854; 
+        }
+
+    </style>
 </header>

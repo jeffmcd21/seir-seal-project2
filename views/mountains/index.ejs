@@ -22,6 +22,8 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <div class="map-container">
+    </div>
     <title>Locator</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -37,11 +39,14 @@
       }
 
       #map-container {
-        width: 75%;
-        height: 75%;
         position: relative;
         font-family: "Roboto", sans-serif;
         box-sizing: border-box;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%; 
+        height: 400px;
       }
 
       #map-container a {
@@ -730,37 +735,17 @@
             
             #container {
                 display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Adjust column widths as needed */
-    gap: 1rem; /* Adjust spacing between items *
-
-                font-size: x-small;
-                display: flex;
-                flex-wrap: wrap;
-                flex-direction: wrap;
-                align-items: center;
-                justify-content: space-around;
-                margin: 0 auto;
-                /* padding-top: 5%;
-                padding-right: 5%; */
-                background-color: rgb(106, 187, 133);
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+                gap: .5rem;
+                background-color: rgb(253, 187, 145);
                 box-shadow: 5px 5px 15px #9dadff, -5px -5px 15px #9dadff;
                 
-                /* 
-                display: grid;
-                grid-template-areas: 
-                "header header header"
-                "section" "section" "aside"
-                "section" "section" "aside"
-                "section" "section" "aside"
-                "section" "section" "aside"
-                "footer footer footer";    
-                 */
             }
 
             .grid-item {
-  border: 1px solid #ccc; /* Optional: Add borders for visual clarity */
-  padding: 10px;          /* Optional: Add padding around content */
-}
+              border: 1px solid #ccc; 
+              padding: 10px;          
+            }
 
             .allMountains {
                 display: flex;
@@ -772,15 +757,8 @@
                 box-shadow: 5px 5px 15px #fefefe, -5px -5px 15px #fffefe;
             }
 
-            /* section {
-                grid-area: section;
-            } */
-
             aside {
                 display: grid;
-                /* flex-direction: row; */
-                /* padding: auto; */
-                /* grid-area: aside; */
                 background-color: blue;
                 color: whitesmoke;
                 border-radius: 5px;
