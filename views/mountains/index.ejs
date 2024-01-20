@@ -699,7 +699,8 @@
                 modalHiked.close()
             })
         </script> -->
-            <aside>
+      </div>
+            <div id="hikedMtns">
             <% for (let mountain of mountainsHiked) { %> 
                 <article id="completedMountains grid-item">
                     <!-- <a href="/mountains/<%#= mountain._id %>"> -->
@@ -717,8 +718,8 @@
                     <!-- </a> -->
                 </article>            
             <% } %>
-            </aside>
-        </div>
+              </div>
+        
 
         <style>
             body {
@@ -736,7 +737,7 @@
             #container {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-                gap: .5rem;
+                /* gap: .5rem; */
                 background-color: rgb(253, 187, 145);
                 box-shadow: 5px 5px 15px #9dadff, -5px -5px 15px #9dadff;
                 
@@ -757,10 +758,10 @@
                 box-shadow: 5px 5px 15px #fefefe, -5px -5px 15px #fffefe;
             }
 
-            aside {
+            #hikedMtns {
                 display: grid;
-                background-color: blue;
-                color: whitesmoke;
+                background-color: lightblue;
+                /* color: whitesmoke; */
                 border-radius: 5px;
                 margin: 10px;
                 padding: 5px;
