@@ -16,7 +16,7 @@ registerGlobalMiddleware(app)
 // ~ ROUTES ~ //
 app.get("/", (req, res) => {
     // res.send("Live Action")
-    res.redirect("/mountains") //index.ejs
+    res.redirect("/user/login") //index.ejs
 })
 
 

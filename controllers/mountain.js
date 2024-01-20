@@ -18,7 +18,7 @@ router.use((req, res, next) => {
     } else {
     res.redirect("/user/login")
     }
-}); // This middleware block is what is blocking the user from seeing the entire mountain list.
+});
 
 
 // ~ ROUTES ~ //
